@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
@@ -21,6 +22,20 @@ pub fn build(b: *std.Build) void {
         .name = "klib",
         .root_module = lib_mod,
     });
+
+    switch (builtin.os.tag) {
+        .windows => {
+            lib.linkSystemLibrary("kernel32");
+            lib.linkSystemLibrary("advapi32");
+        },
+        .linux => {
+            lib.linkLibC();
+        },
+        else => |tag| {
+            std.log.err("Compilation is not supported on: {}", .{tag});
+            return error.Unsupported;
+        },
+    }
 
     b.installArtifact(lib);
 
