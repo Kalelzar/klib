@@ -12,6 +12,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
     });
 
     const lib_tests = b.addTest(.{
@@ -79,9 +80,7 @@ pub fn build(b: *std.Build) void {
             lib_mod.linkSystemLibrary("kernel32", .{ .preferred_link_mode = .dynamic });
             lib_mod.linkSystemLibrary("advapi32", .{ .preferred_link_mode = .dynamic });
         },
-        .linux => {
-            lib_mod.linkLibC();
-        },
+        .linux => {},
         else => |tag| {
             std.log.err("Compilation is not supported on: {}", .{tag});
             return error.Unsupported;
