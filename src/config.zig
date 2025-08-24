@@ -106,7 +106,7 @@ fn buildConfigPaths(allocator: std.mem.Allocator, comptime dirname: []const u8, 
     const config_path = basename ++ ext;
 
     // 1. Check current directory
-    const buf: [256]u8 = undefined;
+    var buf: [256]u8 = undefined;
     const cwd = try std.process.getCwd(&buf);
     try paths.append(try std.fs.path.join(allocator, &.{ cwd, config_path }));
 
