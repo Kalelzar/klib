@@ -17,7 +17,7 @@ extern "kernel32" fn GetComputerNameExA(
     computerName: ComputerName,
     outBuffer: ?windows.LPSTR,
     outSize: *windows.DWORD,
-) callconv(windows.WINAPI) windows.BOOL;
+) callconv(.winapi) windows.BOOL;
 
 pub fn hostname(allocator: std.mem.Allocator) ![]const u8 {
     var size: u32 = 0;
@@ -34,7 +34,7 @@ pub fn hostname(allocator: std.mem.Allocator) ![]const u8 {
 extern "advapi32" fn GetUserNameA(
     lpBuffer: ?windows.LPSTR,
     pcbBuffer: *windows.DWORD,
-) callconv(windows.WINAPI) windows.BOOL;
+) callconv(.winapi) windows.BOOL;
 
 pub fn username(allocator: std.mem.Allocator) ![]const u8 {
     var size: u32 = 0;
