@@ -91,12 +91,12 @@ const LoadPaths = struct {
             self.allocator.free(path);
         }
 
-        self.paths.deinit();
+        self.paths.deinit(self.allocator);
     }
 };
 
 fn buildConfigPaths(allocator: std.mem.Allocator, comptime dirname: []const u8, comptime basename: []const u8) !LoadPaths {
-    var paths = std.ArrayList([]u8).init(allocator);
+    var paths = std.ArrayList([]u8){};
     errdefer {
         const load_paths = LoadPaths.init(allocator, paths);
         load_paths.deinit();
@@ -106,9 +106,8 @@ fn buildConfigPaths(allocator: std.mem.Allocator, comptime dirname: []const u8, 
     const config_path = basename ++ ext;
 
     // 1. Check current directory
-    const buf = try allocator.alloc(u8, 256);
-    defer allocator.free(buf);
-    const cwd = try std.process.getCwd(buf);
+    const buf: [256]u8 = undefined;
+    const cwd = try std.process.getCwd(&buf);
     try paths.append(try std.fs.path.join(allocator, &.{ cwd, config_path }));
 
     // 2. Check XDG config directory
