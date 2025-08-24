@@ -108,24 +108,24 @@ fn buildConfigPaths(allocator: std.mem.Allocator, comptime dirname: []const u8, 
     // 1. Check current directory
     var buf: [256]u8 = undefined;
     const cwd = try std.process.getCwd(&buf);
-    try paths.append(try std.fs.path.join(allocator, &.{ cwd, config_path }));
+    try paths.append(allocator, try std.fs.path.join(allocator, &.{ cwd, config_path }));
 
     // 2. Check XDG config directory
     if (try ConfigLocations.getXdgConfigHome(allocator)) |xdg_config| {
         defer allocator.free(xdg_config);
         const xdg_path = try std.fs.path.join(allocator, &.{ xdg_config, dirname, config_path });
-        try paths.append(xdg_path);
+        try paths.append(allocator, xdg_path);
     }
 
     // 3. Check HOME config directory
     if (try ConfigLocations.getHome(allocator)) |home_config| {
         defer allocator.free(home_config);
         const home_path = try std.fs.path.join(allocator, &.{ home_config, ".config", dirname, config_path });
-        try paths.append(home_path);
+        try paths.append(allocator, home_path);
     }
 
     // 4. Check /etc for system-wide config
-    try paths.append(try std.fs.path.join(allocator, &.{ "/", "etc", dirname, config_path }));
+    try paths.append(allocator, try std.fs.path.join(allocator, &.{ "/", "etc", dirname, config_path }));
     return LoadPaths.init(allocator, paths);
 }
 
