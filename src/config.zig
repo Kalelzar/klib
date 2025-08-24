@@ -86,7 +86,7 @@ const LoadPaths = struct {
         };
     }
 
-    pub fn deinit(self: *const LoadPaths) void {
+    pub fn deinit(self: *LoadPaths) void {
         for (self.paths.items) |path| {
             self.allocator.free(path);
         }
@@ -98,7 +98,7 @@ const LoadPaths = struct {
 fn buildConfigPaths(allocator: std.mem.Allocator, comptime dirname: []const u8, comptime basename: []const u8) !LoadPaths {
     var paths = std.ArrayList([]u8){};
     errdefer {
-        const load_paths = LoadPaths.init(allocator, paths);
+        var load_paths = LoadPaths.init(allocator, paths);
         load_paths.deinit();
     }
 
