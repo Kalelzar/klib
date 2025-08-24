@@ -135,7 +135,7 @@ pub fn findConfigFile(
     comptime dir_name: []const u8,
     comptime config_name: []const u8,
 ) !?ConfigType {
-    const loadPath = try buildConfigPaths(allocator, dir_name, config_name);
+    var loadPath = try buildConfigPaths(allocator, dir_name, config_name);
     defer loadPath.deinit();
     var result: ?ConfigType = null;
 
@@ -152,7 +152,7 @@ pub fn findConfigFile(
 }
 
 pub fn findConfigFileToUpdate(config: anytype, allocator: std.mem.Allocator, comptime dir_name: []const u8, comptime config_name: []const u8) !void {
-    const loadPath = try buildConfigPaths(allocator, dir_name, config_name);
+    var loadPath = try buildConfigPaths(allocator, dir_name, config_name);
     defer loadPath.deinit();
 
     for (loadPath.paths.items) |path| {
