@@ -60,19 +60,24 @@ fn openConfigFile(comptime ConfigType: type, allocator: std.mem.Allocator, path:
 }
 
 fn updateConfigFile(path: []const u8, config: anytype) !void {
-    const file = try std.fs.openFileAbsolute(
+    const file = try std.fs.createFileAbsolute(
         path,
-        std.fs.File.OpenFlags{ .mode = .write_only },
+        std.fs.File.CreateFlags{
+            .truncate = true,
+        },
     );
     defer file.close();
 
     try file.seekTo(0);
-    const file_writer = file.writer();
-    try std.json.stringify(
+    var buf: [4096]u8 = undefined;
+    var file_writer = file.writer(&buf);
+    const wi = &file_writer.interface;
+    const fmt = std.json.fmt(
         config,
         .{ .whitespace = .indent_2 },
-        file_writer,
     );
+    try fmt.format(wi);
+    try wi.flush();
 }
 
 const LoadPaths = struct {
