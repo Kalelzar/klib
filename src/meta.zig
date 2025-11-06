@@ -255,9 +255,22 @@ pub fn isValuePointer(comptime T: type) bool {
 }
 
 pub fn Return(comptime fun: anytype) type {
-    return switch (@typeInfo(@TypeOf(fun))) {
+    return ReturnT(@TypeOf(fun));
+}
+
+pub fn ReturnT(comptime fun: type) type {
+    return switch (@typeInfo(fun)) {
         .@"fn" => |f| f.return_type.?,
-        else => @compileError("Expected a function, got " ++ @typeName(@TypeOf(fun))),
+        .pointer => |p| ReturnT(p.child),
+        else => @compileError("Expected a function, got " ++ @typeName(fun)),
+    };
+}
+
+pub fn Fn(comptime fun: anytype) type {
+    return switch (@typeInfo(fun)) {
+        .@"fn" => |_| fun,
+        .pointer => |p| Fn(p.child),
+        else => @compileError("Expected a function, got " ++ @typeName(fun)),
     };
 }
 
