@@ -27,14 +27,20 @@ pub fn MergeStructs(comptime Base: type, comptime Child: type) type {
 
     fields = fields ++ child_info.@"struct".fields;
 
-    return @Type(.{
-        .@"struct" = .{
-            .layout = .auto,
-            .fields = fields,
-            .decls = &.{},
-            .is_tuple = false,
-        },
-    });
+    var names: [fields.len][]const u8 = undefined;
+    var types: [fields.len]type = undefined;
+    var attributes: [fields.len]std.builtin.Type.StructField.Attributes = undefined;
+    for (fields, 0..) |field, i| {
+        names[i] = field.name;
+        types[i] = field.type;
+        attributes[i] = .{
+            .@"comptime" = field.is_comptime,
+            .@"align" = field.alignment,
+            .default_value_ptr = field.default_value_ptr,
+        };
+    }
+
+    return @Struct(.auto, null, names, types, attributes);
 }
 
 // Validates that a struct has the same fields as another.
@@ -268,7 +274,7 @@ pub fn ReturnT(comptime fun: type) type {
 
 pub fn Fn(comptime fun: anytype) type {
     return switch (@typeInfo(fun)) {
-        .@"fn" => |_| fun,
+        .@"fn" => fun,
         .pointer => |p| Fn(p.child),
         else => @compileError("Expected a function, got " ++ @typeName(fun)),
     };

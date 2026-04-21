@@ -28,7 +28,7 @@
 
     // Tracks the earliest Zig version that the package considers to be a
     // supported use case.
-    .minimum_zig_version = "0.15.1",
+    .minimum_zig_version = "0.16.0",
 
     // This field is optional.
     // Each dependency must either provide a `url` and `hash`, or a `path`.
@@ -37,12 +37,12 @@
     // internet connectivity.
     .dependencies = .{
         .uuid = .{
-            .url = "git+https://github.com/r4gus/uuid-zig.git#58ed00d4df6b08ca2570602758c486989d019693",
-            .hash = "uuid-0.3.2-oOieIY54AACgyWA1nI8rtVBRqHwAg2DPnuKiM2FycatZ",
+            .url = "https://codeberg.org/r4gus/uuid-zig/archive/0.5.0.tar.gz",
+            .hash = "uuid-0.5.0-oOieIQx-AABtc9U3ihv_bf9pZAYoKp4UMsNFHBr-cn-w",
         },
         .metrics = .{
-            .url = "git+https://github.com/karlseguin/metrics.zig.git#13d8706e1ae921a8cc0d2f88283c1b5412c73e2f",
-            .hash = "metrics-0.0.0-W7G4eP2_AQBKsaql3dhLJ-pkf-RdP-zV3vflJy4N34jC",
+            .url = "git+https://github.com/karlseguin/metrics.zig.git#6de29b83a750a06c438d268543e0e3c3c1b309da",
+            .hash = "metrics-0.0.0-W7G4eIegAQD4XxA9Co7Atbw59u_2zvxYf406AZuoAHPM",
         },
     },
 
