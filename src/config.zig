@@ -169,10 +169,18 @@ pub fn findConfigFile(
     return result;
 }
 
-pub fn findConfigFileToUpdate(config: anytype, io: std.Io, allocator: std.mem.Allocator, comptime dir_name: []const u8, comptime config_name: []const u8) !void {
+pub fn findConfigFileToUpdate(
+    config: anytype,
+    io: std.Io,
+    env_map: *const std.process.Environ.Map,
+    allocator: std.mem.Allocator,
+    comptime dir_name: []const u8,
+    comptime config_name: []const u8,
+) !void {
     var loadPath = try buildConfigPaths(
         allocator,
         io,
+        env_map,
         dir_name,
         config_name,
     );
@@ -206,16 +214,20 @@ pub fn Config(comptime Base: type, comptime Extension: type) type {
 fn findConfigFileOrDefault(
     comptime ConfigType: type,
     allocator: std.mem.Allocator,
+    io: std.Io,
+    env_map: *const std.process.Environ.Map,
     comptime dir_name: []const u8,
     comptime config_name: []const u8,
 ) !ConfigType {
-    return (try findConfigFile(ConfigType, allocator, dir_name, config_name)) orelse std.mem.zeroInit(ConfigType, .{});
+    return (try findConfigFile(ConfigType, allocator, io, env_map, dir_name, config_name)) orelse std.mem.zeroInit(ConfigType, .{});
 }
 
 pub fn findConfigFileWithDefaults(
     comptime Base: type,
     comptime OptBase: type,
     comptime ConfigType: type,
+    io: std.Io,
+    env_map: *const std.process.Environ.Map,
     comptime dir_name: []const u8,
     comptime base_config_name: []const u8,
     comptime config_name: []const u8,
@@ -224,9 +236,9 @@ pub fn findConfigFileWithDefaults(
     const allocator = arena.allocator();
 
     const Extension = meta.MergeStructs(OptBase, ConfigType);
-    const ext = try findConfigFileOrDefault(Extension, allocator, dir_name, config_name);
+    const ext = try findConfigFileOrDefault(Extension, allocator, io, env_map, dir_name, config_name);
 
-    const base = try findConfigFileOrDefault(Base, allocator, dir_name, base_config_name);
+    const base = try findConfigFileOrDefault(Base, allocator, io, env_map, dir_name, base_config_name);
     const Final = meta.MergeStructs(Base, ConfigType);
 
     const final = meta.merge(Base, Extension, Final, base, ext);

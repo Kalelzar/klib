@@ -23,7 +23,7 @@ pub fn hostname(allocator: std.mem.Allocator) ![]const u8 {
     var size: u32 = 0;
     _ = GetComputerNameExA(.ComputerNameDnsHostname, null, &size);
     const bufZ = try allocator.allocSentinel(u8, size, 0);
-    if (GetComputerNameExA(.ComputerNameDnsHostname, bufZ.ptr, &size) == 0) {
+    if (GetComputerNameExA(.ComputerNameDnsHostname, bufZ.ptr, &size) == .FALSE) {
         const err = windows.GetLastError();
         std.log.err("Failed to retrieve hostname with: {}", .{err});
         return error.HostnameError; //TODO: Maybe return а more detailed error.
@@ -43,7 +43,7 @@ pub fn username(allocator: std.mem.Allocator) ![]const u8 {
     const bufZ = try allocator.allocSentinel(u8, size - 1, 0);
     errdefer allocator.free(bufZ);
 
-    if (GetUserNameA(bufZ.ptr, &size) == 0) {
+    if (GetUserNameA(bufZ.ptr, &size) == .FALSE) {
         const err = windows.GetLastError();
         std.log.err("Failed to retrieve username: {}", .{err});
         return error.UsernameError;
