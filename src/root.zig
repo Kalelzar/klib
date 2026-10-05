@@ -4,7 +4,8 @@ pub const allocator = @import("allocator.zig");
 pub const mem = @import("mem.zig");
 pub const config = @import("config.zig");
 pub const host = @import("host.zig");
+pub const testing = @import("testing.zig");
 
 test {
-    @import("std").testing.refAllDeclsRecursive(@This());
+    testing.refAllDeclsRecursive(@This());
 }

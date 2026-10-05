@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 
 const platform = switch (builtin.os.tag) {
     .windows => @import("os/windows.zig"),
-    .linux, .macos, .freebsd, .openbsd, .netbsd, .dragonfly, .solaris => @import("os/posix.zig"),
+    .linux, .macos, .freebsd, .openbsd, .netbsd, .dragonfly, .illumos => @import("os/posix.zig"),
     else => |tag| @compileError(std.fmt.comptimePrint("Compilation is not supported on: {}", .{tag})),
 };
 

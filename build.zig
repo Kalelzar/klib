@@ -41,11 +41,11 @@ pub fn build(b: *std.Build) void {
     );
 
     const fmt = b.addFmt(.{
-        .paths = &.{
+        .paths = b.pathList(&.{
             "src/",
             "build.zig",
             "build.zig.zon",
-        },
+        }),
         .check = true,
     });
 
@@ -65,12 +65,6 @@ pub fn build(b: *std.Build) void {
     docs_step.dependOn(&install_docs.step);
     docs_step.dependOn(&lib.step);
 
-    // Dependencies:
-    // 1st Party:
-    // 3rd Party:
-    const uuid = b.dependency("uuid", .{ .target = target, .optimize = optimize }).module("uuid");
-    const metrics = b.dependency("metrics", .{ .target = target, .optimize = optimize }).module("metrics");
-
     // Imports:
     // Internal:
     // 1st Party:
@@ -86,7 +80,4 @@ pub fn build(b: *std.Build) void {
             return error.Unsupported;
         },
     }
-
-    lib_mod.addImport("metrics", metrics);
-    lib_mod.addImport("uuid", uuid);
 }

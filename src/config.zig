@@ -12,61 +12,51 @@ pub fn validate(comptime Base: type, comptime Extension: type) type {
 //TODO: These locations should be configurable.
 const ConfigLocations = struct {
     // Add XDG Base Directory support
-    pub fn getXdgConfigHome(allocator: std.mem.Allocator) !?[]const u8 {
-        return fromEnv(allocator, "XDG_CONFIG_HOME");
+    env_map: *const std.process.Environ.Map,
+
+    pub fn getXdgConfigHome(self: *const ConfigLocations) ?[]const u8 {
+        return self.fromEnv("XDG_CONFIG_HOME");
     }
 
-    pub fn getHome(allocator: std.mem.Allocator) !?[]const u8 {
-        return fromEnv(allocator, "HOME");
+    pub fn getHome(self: *const ConfigLocations) ?[]const u8 {
+        return self.fromEnv("HOME");
     }
 
-    fn fromEnv(allocator: std.mem.Allocator, envKey: []const u8) !?[]const u8 {
-        const env = std.process.getEnvVarOwned(allocator, envKey);
-        if (env) |path| {
-            return path;
-        } else |err| {
-            switch (err) {
-                error.EnvironmentVariableNotFound => {
-                    return null;
-                },
-                else => |other_error| return other_error,
-            }
-        }
+    fn fromEnv(self: *const ConfigLocations, envKey: []const u8) ?[]const u8 {
+        const env = self.env_map.get(envKey) orelse return null;
+        return env;
     }
 };
 
-fn openConfigFile(comptime ConfigType: type, allocator: std.mem.Allocator, path: []const u8) !ConfigType {
-    const file = try std.fs.openFileAbsolute(
+fn openConfigFile(
+    comptime ConfigType: type,
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    path: []const u8,
+) !ConfigType {
+    const file = try std.Io.Dir.openFileAbsolute(
+        io,
         path,
-        std.fs.File.OpenFlags{ .mode = .read_only },
+        .{ .mode = .read_only },
     );
-    defer file.close();
+    defer file.close(io);
 
-    const stat = try file.stat();
-    const max_size = stat.size;
-    const contents = try file.readToEndAlloc(allocator, max_size);
-    defer allocator.free(contents);
+    // The JSON reader peeks through the file reader's buffer, so it must not be empty.
+    var read_buf: [4096]u8 = undefined;
+    var file_reader = file.readerStreaming(io, &read_buf);
+    var json_reader = json.Reader.init(allocator, &file_reader.interface);
 
-    const parsed = try json.parseFromSliceLeaky(
-        ConfigType,
-        allocator,
-        contents,
-        .{
-            .allocate = .alloc_always,
-        },
-    );
+    const parsed = try json.parseFromTokenSourceLeaky(ConfigType, allocator, &json_reader, .{
+        .allocate = .alloc_always,
+    });
 
     return parsed;
 }
 
-fn updateConfigFile(path: []const u8, config: anytype) !void {
-    const file = try std.fs.createFileAbsolute(
-        path,
-        std.fs.File.CreateFlags{
-            .truncate = true,
-        },
-    );
-    defer file.close();
+fn updateConfigFile(io: std.Io, path: []const u8, config: anytype) !void {
+    const file = try std.Io.Dir.createFileAbsolute(io, path, .{ .truncate = true });
+
+    defer file.close(io);
 
     try file.seekTo(0);
     var buf: [4096]u8 = undefined;
@@ -100,8 +90,14 @@ const LoadPaths = struct {
     }
 };
 
-fn buildConfigPaths(allocator: std.mem.Allocator, comptime dirname: []const u8, comptime basename: []const u8) !LoadPaths {
-    var paths = std.ArrayList([]u8){};
+fn buildConfigPaths(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    env_map: *const std.process.Environ.Map,
+    comptime dirname: []const u8,
+    comptime basename: []const u8,
+) !LoadPaths {
+    var paths = std.ArrayList([]u8).empty;
     errdefer {
         var load_paths = LoadPaths.init(allocator, paths);
         load_paths.deinit();
@@ -111,41 +107,58 @@ fn buildConfigPaths(allocator: std.mem.Allocator, comptime dirname: []const u8, 
     const config_path = basename ++ ext;
 
     // 1. Check current directory
-    var buf: [256]u8 = undefined;
-    const cwd = try std.process.getCwd(&buf);
+    var buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const cwd: []const u8 = buf[0..try std.process.currentPath(io, &buf)];
     try paths.append(allocator, try std.fs.path.join(allocator, &.{ cwd, config_path }));
 
+    const locs = ConfigLocations{ .env_map = env_map };
+
     // 2. Check XDG config directory
-    if (try ConfigLocations.getXdgConfigHome(allocator)) |xdg_config| {
-        defer allocator.free(xdg_config);
-        const xdg_path = try std.fs.path.join(allocator, &.{ xdg_config, dirname, config_path });
+    if (locs.getXdgConfigHome()) |xdg_config| {
+        const xdg_path = try std.fs.path.join(
+            allocator,
+            &.{ xdg_config, dirname, config_path },
+        );
         try paths.append(allocator, xdg_path);
     }
 
     // 3. Check HOME config directory
-    if (try ConfigLocations.getHome(allocator)) |home_config| {
-        defer allocator.free(home_config);
-        const home_path = try std.fs.path.join(allocator, &.{ home_config, ".config", dirname, config_path });
+    if (locs.getHome()) |home_config| {
+        const home_path = try std.fs.path.join(
+            allocator,
+            &.{ home_config, ".config", dirname, config_path },
+        );
         try paths.append(allocator, home_path);
     }
 
     // 4. Check /etc for system-wide config
-    try paths.append(allocator, try std.fs.path.join(allocator, &.{ "/", "etc", dirname, config_path }));
+    try paths.append(allocator, try std.fs.path.join(
+        allocator,
+        &.{ "/", "etc", dirname, config_path },
+    ));
     return LoadPaths.init(allocator, paths);
 }
 
 pub fn findConfigFile(
     comptime ConfigType: type,
     allocator: std.mem.Allocator,
+    io: std.Io,
+    env_map: *const std.process.Environ.Map,
     comptime dir_name: []const u8,
     comptime config_name: []const u8,
 ) !?ConfigType {
-    var loadPath = try buildConfigPaths(allocator, dir_name, config_name);
+    var loadPath = try buildConfigPaths(
+        allocator,
+        io,
+        env_map,
+        dir_name,
+        config_name,
+    );
     defer loadPath.deinit();
     var result: ?ConfigType = null;
 
     for (loadPath.paths.items) |path| {
-        result = openConfigFile(ConfigType, allocator, path) catch |err| switch (err) {
+        result = openConfigFile(ConfigType, allocator, io, path) catch |err| switch (err) {
             error.FileNotFound => continue,
             else => |other_error| return other_error,
         };
@@ -156,12 +169,17 @@ pub fn findConfigFile(
     return result;
 }
 
-pub fn findConfigFileToUpdate(config: anytype, allocator: std.mem.Allocator, comptime dir_name: []const u8, comptime config_name: []const u8) !void {
-    var loadPath = try buildConfigPaths(allocator, dir_name, config_name);
+pub fn findConfigFileToUpdate(config: anytype, io: std.Io, allocator: std.mem.Allocator, comptime dir_name: []const u8, comptime config_name: []const u8) !void {
+    var loadPath = try buildConfigPaths(
+        allocator,
+        io,
+        dir_name,
+        config_name,
+    );
     defer loadPath.deinit();
 
     for (loadPath.paths.items) |path| {
-        updateConfigFile(path, config) catch |err| switch (err) {
+        updateConfigFile(io, path, config) catch |err| switch (err) {
             error.FileNotFound => continue,
             else => |other_error| return other_error,
         };
